@@ -5,7 +5,8 @@ const GEO_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 const CASHE_MINS = 10;
 const CACHE_KEY = "weatherCashe";
-
+const RECENT_KEY = "recentCities";
+const MAX_RECENT = 10;
 
 // نكتب getJson و findCity و getForecast و getCityWeather مع بعض في اللايف
 async function getJson(url) {
@@ -50,7 +51,7 @@ async function getForecast(place) {
 
 function readCache() {
     try {
-        return JSON.parse(localStorage.getItem(CACHE_KEY))
+        return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}
     } catch(err) {
         return {};
     }
@@ -58,11 +59,11 @@ function readCache() {
 
 export async function getCityWeather(city) {
     const key = city.trim();
-    // const cache = readCache();
-    // const saved = cache[key];
-    // if(saved && Date.now() - saved.time < CASHE_MINS * 60 * 1000) {
-    //     return { ...saved.data, fromCashe: true}
-    //  }
+    const cache = readCache();
+    const saved = cache[key];
+    if(saved && Date.now() - saved.time < CASHE_MINS * 60 * 1000) {
+        return { ...saved.data, fromCashe: true}
+     }
 
     const place = await findCity(city);
     console.log(place)
@@ -73,10 +74,29 @@ export async function getCityWeather(city) {
         weather,
     }
 
-    //  cache[key] = {time: Date.now(), data};
+    cache[key] = {time: Date.now(), data};
+    writeCashe(cache);
 
     return {
         ...data,
         fromCashe: false
     }
+}
+
+function writeCashe(cache) {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+}
+
+export function getRecent() {
+    try {
+        return JSON.parse(localStorage.getItem(RECENT_KEY)) || []
+    } catch (error) {
+        return [];
+    }
+}
+
+export function addRecent(city) {
+    const list = getRecent().filter((c) => c.toLowerCase() !== city.toLowerCase());
+    list.unshift(city);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
 }

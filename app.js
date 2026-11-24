@@ -1,7 +1,7 @@
 // لوحة الطقس: الجلسة 19 (بيانات Open-Meteo)
 // افتح الصفحة بـ Live Server لأن الملفات من نوع module
 
-import { getCityWeather } from "./weather-api.js";
+import { addRecent, getCityWeather, getRecent } from "./weather-api.js";
 
 
 const MIN_LETTERS = 3;
@@ -40,6 +40,7 @@ function describe(code) {
 // نكتب الباقي مع بعض في اللايف، مرحلة بمرحلة
 
 function render() {
+    console.log(state);
     spinner.hidden = state.status !== "loading";
     statusText.classList.toggle("error", state.status === "error");
 
@@ -58,7 +59,21 @@ function render() {
         renderForecast();
     }
 
-    // renderRecent();
+    renderRecent();
+}
+
+function renderRecent() {
+    recentBox.innerHTML = "";
+    getRecent().forEach((city) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = city;
+        btn.addEventListener("click", () => {
+            cityInput.value = city;
+            search(city);
+        })
+        recentBox.append(btn);
+    })
 }
 
 function renderCurrent() {
@@ -74,9 +89,30 @@ function renderCurrent() {
     document.querySelector("#feels").textContent = `${Math.round(c.apparent_temperature)}`;
     document.querySelector("#humidity").textContent = `${c.relative_humidity_2m}`;
     document.querySelector("#wind").textContent = `${c.wind_speed_10m} م/ث`
+
+     const drink = temp >= 25 ? "مشروب بارد" : "مشروب ساخن";
+     document.querySelector("#drink").textContent = `اقتراح قهوة نجد: ${drink}`
     }
 
 function renderForecast() {
+    const daily = state.weather.daily;
+    forecastList.innerHTML = ""
+
+    daily.time.forEach((day, i) => {
+      const li = document.createElement("li");
+      li.className = "day";
+      const dayName = new Date(`${day}T12:00:00`).toLocaleDateString("ar", {weekday: "long"});
+      const look = describe(daily.weather_code[i]);
+      li.innerHTML = `
+        <span>${dayName}</span>
+        <span class="icon">${look.icon}</span>
+        <strong>${Math.round(daily.temperature_2m_max[i])}</strong>
+        <small>الصغري <span class="deg">${Math.round(daily.temperature_2m_min[i])}</span></small>
+        <small>${look.text}</small>
+      `
+
+      forecastList.append(li);
+    });
     return;
 }
 
@@ -97,6 +133,7 @@ async function search(city) {
         state.weather = data.weather;
         state.fromCashe = data.fromCashe;
         state.status = "success";
+        addRecent(city);
     }catch(error) {
         if(requestId !== lastRequest) return;
         state.status = "error";
